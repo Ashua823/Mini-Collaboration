@@ -1,5 +1,8 @@
 package main.java.com.collaboration.domain;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import main.java.com.collaboration.util.EncryptUtil;
 
 import java.time.LocalDateTime;
@@ -17,18 +20,18 @@ public class User {
     //在线离线状态
     private String status;
     //注册时间
-    private LocalDateTime createTIme;
+    private String createTime;
 
     public User() {
     }
 
-    public User(String userId, String username, String password, String salt, String status, LocalDateTime createTIme) {
+    public User(String userId, String username, String password, String salt, String status, String createTime) {
         this.userId = userId;
         this.username = username;
         this.password = password;
         this.salt = salt;
         this.status = status;
-        this.createTIme = createTIme;
+        this.createTime = createTime;
     }
 
     public String getUserId() {
@@ -71,12 +74,12 @@ public class User {
         this.status = status;
     }
 
-    public LocalDateTime getCreateTIme() {
-        return createTIme;
+    public String getCreateTime() {
+        return createTime;
     }
 
-    public void setCreateTIme(LocalDateTime createTIme) {
-        this.createTIme = createTIme;
+    public void setCreateTime(String createTime) {
+        this.createTime = createTime;
     }
 
     @Override
@@ -87,7 +90,7 @@ public class User {
                 ", password='" + password + '\'' +
                 ", salt='" + salt + '\'' +
                 ", status='" + status + '\'' +
-                ", createTIme=" + createTIme +
+                ", createTIme=" + createTime +
                 '}';
     }
 
