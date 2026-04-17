@@ -1,11 +1,7 @@
 package main.java.com.collaboration.domain;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import main.java.com.collaboration.util.EncryptUtil;
 
-import java.time.LocalDateTime;
+import main.java.com.collaboration.util.EncryptUtil;
 
 
 public class User {

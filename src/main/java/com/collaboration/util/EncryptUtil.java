@@ -5,6 +5,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 public class EncryptUtil {
+
+
     //	返回随机字符串
     public static String generateSalt(){
         return UUID.randomUUID().toString().replace("-", "");

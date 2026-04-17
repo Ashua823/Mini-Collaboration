@@ -21,9 +21,10 @@ public class JsonStorage {
         List<User> allUsers = findAll();
         // 2. stream + filter 查找
         // 3. 返回 findFirst().orElse(null)
-         return allUsers.stream().filter(user->user.getUsername().equals(username))
-                 .findFirst()
-                 .orElse(null);
+        return allUsers.stream()
+                .filter(user -> user != null && user.getUsername() != null && user.getUsername().equals(username))
+                .findFirst()
+                .orElse(null);
     }
 
 
@@ -75,68 +76,6 @@ public class JsonStorage {
             dir.mkdirs();
         }
     }
-
-    static void main() {
-        JsonStorage storage = new JsonStorage();
-
-        // 1. 测试空文件读取（首次运行）
-        System.out.println("=== 测试 findAll（首次运行）===");
-        List<User> users = storage.findAll();
-        System.out.println("用户数量: " + users.size());
-        System.out.println("用户列表: " + users);
-
-        // 2. 测试保存单个用户
-        System.out.println("\n=== 测试保存用户 ===");
-        User user1 = new User();
-        user1.setUserId("u001");
-        user1.setUsername("张三");
-        user1.setPassword("encrypted123");
-        user1.setSalt("salt123");
-        user1.setStatus("online");
-        user1.setCreateTime(String.valueOf(LocalDateTime.now()));
-
-        storage.save(user1);
-        System.out.println("保存后立即读取: " + storage.findAll().size());
-        System.out.println("用户1保存成功");
-
-        // 3. 测试保存第二个用户
-        User user2 = new User();
-        user2.setUserId("u002");
-        user2.setUsername("李四");
-        user2.setPassword("encrypted456");
-        user2.setSalt("salt456");
-        user2.setStatus("offline");
-        user2.setCreateTime(String.valueOf(LocalDateTime.now()));
-
-        storage.save(user2);
-        System.out.println("用户2保存成功");
-
-        // 4. 测试 findAll 查看所有用户
-        System.out.println("\n=== 测试 findAll（保存后）===");
-        List<User> allUsers = storage.findAll();
-        for (User u : allUsers) {
-            System.out.println("用户名: " + u.getUsername() + ", ID: " + u.getUserId());
-        }
-
-        // 5. 测试 findByUsername
-        System.out.println("\n=== 测试 findByUsername ===");
-        User found = storage.findByUsername("张三");
-        if (found != null) {
-            System.out.println("找到用户: " + found.getUsername());
-        } else {
-            System.out.println("未找到用户");
-        }
-
-        User notFound = storage.findByUsername("王五");
-        System.out.println("查找不存在的用户: " + (notFound == null ? "null" : "找到了"));
-
-
-
-
-    }
-
-
-
 
 
 }

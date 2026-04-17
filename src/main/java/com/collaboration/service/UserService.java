@@ -9,16 +9,17 @@ import java.util.UUID;
 
 public class UserService {
 
-    private final JsonStorage jsonStorage;
+    private static JsonStorage jsonStorage = null;
 
     public UserService() {
-        this.jsonStorage = new JsonStorage();
+        jsonStorage = new JsonStorage();
     }
 
     public JsonStorage getJsonStorage() {
         return jsonStorage;
     }
 
+    //注册检查
     public Response register(String username, String password) {
         // 1. 参数校验
         if (username == null || username.trim().isEmpty()) {
@@ -54,6 +55,7 @@ public class UserService {
 
     }
 
+    //登录检查
     public Response login(String username, String password) {
         // 1. 参数校验
         if (username == null || username.trim().isEmpty()) {
@@ -69,7 +71,7 @@ public class UserService {
         }
 
         // 3. 密码验证
-        if(user.verifyPassword(password)){
+        if(!user.verifyPassword(password)){
             return Response.error("密码错误");
         }
 
@@ -84,30 +86,5 @@ public class UserService {
         return Response.success(user);
 
     }
-
-    public static void main(String[] args) {
-        UserService userService = new UserService();
-
-        // 测试注册
-        System.out.println("=== 测试注册 ===");
-        Response register1 = userService.register("testuser", "123456");
-        System.out.println("注册结果: " + register1);
-
-        // 重复注册测试
-        Response register2 = userService.register("testuser", "123456");
-        System.out.println("重复注册: " + register2);
-
-        // 测试登录
-        System.out.println("\n=== 测试登录 ===");
-        Response login1 = userService.login("testuser", "123456");
-        System.out.println("登录成功测试: " + login1);
-
-        Response login2 = userService.login("testuser", "wrong");
-        System.out.println("密码错误测试: " + login2);
-
-        Response login3 = userService.login("nonexist", "123456");
-        System.out.println("用户不存在测试: " + login3);
-    }
-
 
 }
