@@ -3,20 +3,24 @@ package main.java.com.collaboration.network.server;
 
 import main.java.com.collaboration.domain.Response;
 import main.java.com.collaboration.domain.User;
+import main.java.com.collaboration.service.MessageService;
 import main.java.com.collaboration.service.UserService;
+import main.java.com.collaboration.domain.Message;
 
-import java.io.IOException;
-import java.util.Arrays;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 public class MessageDispatcher {
     private final UserService userService;       // 用户服务
+    private final MessageService messageService;
     // private final MessageService messageService; // 消息服务（后续添加）
     private final Server server ;                 // 服务端引用
 
     public MessageDispatcher(Server server) {
         this.server = server;
         this.userService = new UserService();
+        this.messageService = new MessageService("data/messages.json");  // 添加这行
     }
 
     /**
@@ -36,22 +40,17 @@ public class MessageDispatcher {
         String cmdType= parts[0];
         //用 switch判断：
         switch (cmdType){
-            //LOGIN → 调用 handleLogin(handler, parts)
             case "LOGIN"-> handleLogin(handler, parts);
-            //LOGOUT → 调用 handleLogout(handler)
             case "LOGOUT"->handleLogout(handler);
-            //PUBLIC_MSG → 调用 handlePublicMsg(handler, parts)
             case "PUBLIC_MSG"->handlePublicMsg(handler, parts);
-            //PRIVATE_MSG → 调用 handlePrivateMsg(handler, parts)
             case "PRIVATE_MSG"->handlePrivateMsg(handler, parts);
-            //GET_ONLINE_USERS → 调用 handleGetOnlineUsers(handler)
             case "GET_ONLINE_USERS"->handleGetOnlineUsers(handler);
+            case "GET_MESSAGES" -> handleGetMessages(handler, parts);
+            case "GET_MY_MESSAGES" -> handleGetMyMessages(handler);
             //默认 → 发送未知指令错误
             default -> handler.sendMessage("未知指令: " + cmdType);
         }
     }
-
-
 
     /**
      * 处理登录
@@ -112,26 +111,54 @@ public class MessageDispatcher {
     }
 
     //处理公共聊天消息
+    // 发送公聊消息时，不仅要广播，还要保存到消息队列和文件。
     private void handlePublicMsg(ClientHandler handler, String[] parts){
+        //广播消息
         //检查 handler.isAuthenticated()，未登录则拒绝
         if(!handler.isAuthenticated()){
-            Response.error("未登录");
+            handler.sendMessage("未登录");
             return;
         }
 
         //检查 parts.length >= 2，内容不能为空
         if(parts.length<2 || parts[1].trim().isEmpty()){
-            Response.error("消息内容不能为空");
+            handler.sendMessage("消息内容不能为空");
             return;
         }
 
         //获取消息内容
         //组装广播格式：[公聊] 用户名: 内容
-        String message = "[公共消息]"+handler.getUsername()+":"+parts[1];
+        String rawContent =parts[1];
 
         //广播给所有在线用户
         //调用 server.broadcastMessage(组装的消息)
-        server.broadcastMessage(message);
+        // 广播时加上格式：[公共消息] 用户名: 内容
+        String broadcastMsg = "[公共消息] " + handler.getUsername() + ": " + rawContent;
+        server.broadcastMessage(broadcastMsg);
+
+        //保存消息
+        //创建 Message 对象
+        Message message=new Message(
+                UUID.randomUUID().toString(),
+                handler.getUserId(),
+                handler.getUsername(),
+                null,
+                rawContent,
+                Message.Type.PUBLIC,
+                LocalDateTime.now().toString(),
+                false
+                );
+        //messageId：用 UUID.randomUUID().toString() 生成唯一ID
+        //senderId：从 handler.getUserId() 获取
+        //senderName：从 handler.getUsername() 获取
+        //receiverID：公聊消息设为 null
+        //content：消息内容
+        //type：使用 Message.Type.PUBLIC
+        //timestamp：LocalDateTime.now()
+        //isRead：false
+        //调用 messageService.saveMessage(message) 保存消息
+        messageService.saveMessage(message);
+        handler.sendMessage("消息已发送并保存");
     }
 
     /**
@@ -190,5 +217,74 @@ public class MessageDispatcher {
             handler.sendMessage("在线用户列表: " + String.join(", ", onlineUserList));
         }
     }
+
+
+    private void handleGetMessages(ClientHandler handler, String[] parts) {
+        //检查 handler.isAuthenticated()
+        if(!handler.isAuthenticated()){
+            handler.sendMessage("请先登录");
+            return;
+        }
+        //参数检验
+        if (parts.length < 3) {
+            handler.sendMessage("指令格式错误，正确格式: GET_MESSAGES|页码|每页数量");
+            return;  // 必须返回，否则继续执行会出错
+        }
+        try {
+            int page = Integer.parseInt(parts[1]);
+            int size=Integer.parseInt(parts[2]);
+
+            List<Message> messages = messageService.getMessages(page, size);
+            if(messages==null || messages.isEmpty()){
+                handler.sendMessage("列表为空");
+            }else {
+                for (Message message : messages) {
+                    String content = String.format("[%s] %s: %s",
+                            message.getTimestamp(),
+                            message.getSenderName(),
+                            message.getContent());
+                    handler.sendMessage(content);
+                }
+            }
+        } catch (NumberFormatException e) {
+            handler.sendMessage("页码或每页数量必须是数字");
+            return;
+        }
+    }
+
+    private void handleGetMyMessages(ClientHandler handler) {
+        //检查 handler.isAuthenticated()
+        if(!handler.isAuthenticated()){
+            handler.sendMessage("请先登录");
+            return;
+        }
+        List<Message> messages = messageService.getMessagesByUser(handler.getUsername());
+        if(messages==null || messages.isEmpty()){
+            handler.sendMessage("暂无相关消息");
+        }else {
+            for (Message message : messages) {
+                String formatted;
+                String currentUser = handler.getUsername();
+
+                if (currentUser.equals(message.getSenderName())) {
+                    // 我发送的消息
+                    String receiver = message.getReceiverID();
+                    if (receiver == null) {
+                        receiver = "所有人";  // 公聊
+                    }
+                    formatted = "[我 → " + receiver + "]: " + message.getContent();
+                } else {
+                    // 别人发给我的消息
+                    formatted = "[" + message.getSenderName() + " → 我]: " + message.getContent();
+                }
+                handler.sendMessage(formatted);
+            }
+        }
+
+
+    }
+
+
+
 
 }

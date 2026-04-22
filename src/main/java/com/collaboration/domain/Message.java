@@ -20,7 +20,7 @@ public class Message {
     //公共/私聊/系统消息
     private Type type;
     //发送时间
-    private LocalDateTime timestamp;
+    private String timestamp;
     //是否已读(私信)
     private boolean isRead;
 
@@ -28,14 +28,14 @@ public class Message {
     public Message() {
     }
 
-    public Message(String messageId, String senderId, String senderName, String receiverID, String content, Type type, LocalDateTime timestamp, boolean isRead) {
+    public Message(String messageId, String senderId, String senderName, String receiverID, String content, Type type, String  timestamp, boolean isRead) {
         this.messageId = messageId;
         this.senderId = senderId;
         this.senderName = senderName;
         this.receiverID = receiverID;
         this.content = content;
         this.type = type;
-        this.timestamp = timestamp;
+        this.timestamp =LocalDateTime.now().toString();
         this.isRead = isRead;
     }
 
@@ -87,11 +87,11 @@ public class Message {
         this.type = type;
     }
 
-    public LocalDateTime getTimestamp() {
+    public String getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
+    public void setTimestamp(String timestamp) {
         this.timestamp = timestamp;
     }
 

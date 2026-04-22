@@ -7,6 +7,8 @@ public class Protocol {
     public static final String CMD_PUBLIC_MSG = "PUBLIC_MSG";
     public static final String CMD_PRIVATE_MSG = "PRIVATE_MSG";
     public static final String CMD_GET_ONLINE_USERS = "GET_ONLINE_USERS";
+    public static final String CMD_GET_MESSAGES = "GET_MESSAGES";
+    public static final String CMD_GET_MY_MESSAGES = "GET_MY_MSGS";
 
     // 分隔符
     public static final String DELIMITER = "|";

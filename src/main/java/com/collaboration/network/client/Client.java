@@ -131,11 +131,12 @@ public class Client {
         System.out.println("公聊:        PUBLIC_MSG|消息内容");
         System.out.println("私聊:        PRIVATE_MSG|目标用户名|消息内容");
         System.out.println("在线列表:    GET_ONLINE_USERS");
+        System.out.println("消息记录:    GET_MESSAGES|页码|每页数量");
+        System.out.println("我的消息:    GET_MY_MESSAGES");
         System.out.println("登出:        LOGOUT");
         System.out.println("退出程序:    /quit");
         System.out.println("==============================\n");
     }
-
     //断开连接
     public void disconnect() throws IOException {
         //设置 isConnected = false
