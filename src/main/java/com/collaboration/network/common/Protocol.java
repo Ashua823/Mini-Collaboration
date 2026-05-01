@@ -16,4 +16,13 @@ public class Protocol {
     // 响应状态
     public static final String RESP_OK = "OK";
     public static final String RESP_ERROR = "ERROR";
+
+    // 文件相关指令
+    public static final String CMD_UPLOAD_FILE = "UPLOAD_FILE";
+    public static final String CMD_UPLOAD_CHUNK = "UPLOAD_CHUNK";
+    public static final String CMD_DOWNLOAD_FILE = "DOWNLOAD_FILE";
+    public static final String CMD_DOWNLOAD_CHUNK = "DOWNLOAD_CHUNK";
+    public static final String CMD_GET_FILE_LIST = "GET_FILE_LIST";
+    public static final String CMD_GET_MY_FILES = "GET_MY_FILES";
+
 }

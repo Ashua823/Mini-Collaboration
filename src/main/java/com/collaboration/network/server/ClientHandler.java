@@ -11,7 +11,7 @@ public class ClientHandler {
     private PrintWriter out;                     // 向客户端输出
     private final Server server;                 // 服务端引用
     private boolean isAuthenticated;             // 是否已登录认证
-
+    private String currentUploadFileId;
     public ClientHandler(Socket socket, Server server) {
         this.socket = socket;
         this.server = server;
@@ -67,6 +67,13 @@ public class ClientHandler {
         isAuthenticated = authenticated;
     }
 
+    public String getCurrentUploadFileId() {
+        return currentUploadFileId;
+    }
+
+    public void setCurrentUploadFileId(String currentUploadFileId) {
+        this.currentUploadFileId = currentUploadFileId;
+    }
     //线程执行体（核心）
     public void run() {
         try {
@@ -107,12 +114,18 @@ public class ClientHandler {
     // 关闭连接
     public void close() throws IOException {
         //如果已登录（isAuthenticated == true）：
-        if(isAuthenticated && username!=null){
+        if(isAuthenticated && username!=null) {
             //从 server 移除该用户 server.removeClient(username)
             server.removeClient(username);
-            //关闭 in
+        }
+
+            //无论是否登录,都要关闭 in
             if (in!=null){
-                in.close();
+                try {
+                    in.close();
+                } catch (IOException _) {
+
+                }
             }
             //关闭 out
             if (out != null) {
@@ -123,7 +136,7 @@ public class ClientHandler {
                 socket.close();
             }
 
-        }
+
     }
 
 }
