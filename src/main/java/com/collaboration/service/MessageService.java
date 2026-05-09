@@ -1,10 +1,12 @@
-package main.java.com.collaboration.service;
+package com.collaboration.service;
 
 
+
+import com.collaboration.domain.Message;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import main.java.com.collaboration.domain.Message;
+
 
 import java.io.File;
 import java.io.IOException;

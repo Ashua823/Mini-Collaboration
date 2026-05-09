@@ -1,4 +1,4 @@
-package main.java.com.collaboration.network.common;
+package com.collaboration.network.common;
 
 public class Protocol {
     // 指令类型

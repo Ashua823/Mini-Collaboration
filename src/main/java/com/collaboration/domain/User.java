@@ -1,8 +1,7 @@
-package main.java.com.collaboration.domain;
+package com.collaboration.domain;
 
 
-import main.java.com.collaboration.util.EncryptUtil;
-
+import com.collaboration.util.EncryptUtil;
 
 public class User {
     //用户唯一标识

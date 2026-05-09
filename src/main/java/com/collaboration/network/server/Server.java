@@ -1,4 +1,4 @@
-package main.java.com.collaboration.network.server;
+package com.collaboration.network.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -160,8 +160,8 @@ public class Server {
         return onlineClients.containsKey(username);
     }
 
-    // ========== 主方法（用于测试）==========
-    public static void main(String[] args) {
+    // ========== 入口 ==========
+    static void main() {
         Server server = new Server(8888);
         try {
             server.start();

@@ -1,4 +1,4 @@
-package main.java.com.collaboration.network.client;
+package com.collaboration.network.client;
 
 import java.io.*;
 import java.net.Socket;
@@ -13,7 +13,6 @@ public class Client {
     private Socket socket;
     private BufferedReader in;
     private PrintWriter out;
-    private BufferedReader userInput;
     private volatile boolean isConnected;
     private String host;
     private int port;
@@ -49,7 +48,6 @@ public class Client {
             socket = new Socket(host, port);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new PrintWriter(socket.getOutputStream(), true);
-            userInput = new BufferedReader(new InputStreamReader(System.in));
             isConnected = true;
             System.out.println("已连接到服务器:" + host + ":" + port);
             return true;
@@ -77,12 +75,12 @@ public class Client {
                 // 放入队列供同步等待使用
                 responseQueue.offer(message);
 
-                // 同时打印出来（除非是文件传输相关的响应，这些由同步方法处理）
+                // 非文件传输消息才打印
                 if (!message.startsWith("UPLOAD_READY|") &&
                         !message.startsWith("CHUNK_OK|") &&
                         !message.startsWith("CHUNK_DATA|") &&
                         !message.startsWith("FILE_DETAIL|")) {
-                    System.out.println(message);
+                    System.out.println("[服务器] " + message);
                 }
             }
         } catch (IOException e) {
@@ -106,11 +104,11 @@ public class Client {
             while (System.currentTimeMillis() - startTime < timeoutMs) {
                 String msg = responseQueue.poll(100, TimeUnit.MILLISECONDS);
                 if (msg != null) {
-                    // 如果是文件传输相关的响应，返回给调用者
                     if (msg.startsWith(prefix)) {
                         return msg;
                     }
-                    // 其他消息已经在 listenForMessages 中打印了，这里不需要重复处理
+                    // 不匹配的消息放回队列，让 receiveMessage 能取到
+                    responseQueue.offer(msg);
                 }
             }
         } catch (InterruptedException e) {
@@ -132,44 +130,6 @@ public class Client {
             return null;
         }
         return response.split("\\|");
-    }
-
-    public void start() throws IOException {
-        if (!connect()) {
-            return;
-        }
-
-        printHelp();
-
-        // 启动监听线程
-        new Thread(this::listenForMessages).start();
-
-        String input;
-        try {
-            while (isConnected && (input = userInput.readLine()) != null) {
-                if (input.trim().isEmpty()) {
-                    continue;
-                }
-                if (input.equals("/quit")) {
-                    break;
-                }
-                // 处理文件上传命令
-                if (input.startsWith("UPLOAD_FILE|")) {
-                    handleUploadFile(input);
-                }
-                // 处理文件下载命令
-                else if (input.startsWith("DOWNLOAD_FILE|")) {
-                    handleDownloadFile(input);
-                }
-                else {
-                    sendCommand(input);
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("读取输入失败: " + e.getMessage());
-        } finally {
-            disconnect();
-        }
     }
 
     /**
@@ -326,22 +286,6 @@ public class Client {
         }
     }
 
-    private void printHelp() {
-        System.out.println("\n========== 指令帮助 ==========");
-        System.out.println("登录:        LOGIN|用户名|密码");
-        System.out.println("公聊:        PUBLIC_MSG|消息内容");
-        System.out.println("私聊:        PRIVATE_MSG|目标用户名|消息内容");
-        System.out.println("在线列表:    GET_ONLINE_USERS");
-        System.out.println("消息记录:    GET_MESSAGES|页码|每页数量");
-        System.out.println("我的消息:    GET_MY_MESSAGES");
-        System.out.println("文件列表:    GET_FILE_LIST");
-        System.out.println("我的文件:    GET_MY_FILES");
-        System.out.println("上传文件:    UPLOAD_FILE|文件路径");
-        System.out.println("下载文件:    DOWNLOAD_FILE|文件ID");
-        System.out.println("登出:        LOGOUT");
-        System.out.println("退出程序:    /quit");
-        System.out.println("==============================\n");
-    }
 
     public void disconnect() throws IOException {
         isConnected = false;
@@ -363,9 +307,70 @@ public class Client {
         }
         System.out.println("已断开连接");
     }
-
-    static void main() throws IOException {
-        Client client = new Client("localhost", 8888);
-        client.start();
+    /**
+     * 登录
+     * @param username 用户名
+     * @param password 密码
+     * @return 服务器响应
+     */
+    public String login(String username, String password) {
+        sendCommand("LOGIN|" + username + "|" + password);
+        return waitForResponse("登录", 5000);  // ← 改成匹配"登录"
     }
+
+    /**
+     * 发送公共消息
+     */
+    public void sendPublicMessage(String content) {
+        sendCommand("PUBLIC_MSG|" + content);
+    }
+
+    /**
+     * 发送私聊消息
+     */
+    public void sendPrivateMessage(String target, String content) {
+        sendCommand("PRIVATE_MSG|" + target + "|" + content);
+    }
+
+    /**
+     * 获取在线用户
+     */
+    public String getOnlineUsers() {
+        sendCommand("GET_ONLINE_USERS");
+        return waitForResponse("在线用户列表", 5000);  // ← 改成匹配"在线用户列表"
+    }
+
+    /**
+     * 接收消息（供 GUI 轮询使用）
+     * 从响应队列中取出一条非文件传输的消息
+     * @return 消息内容，无消息时返回 null
+     */
+    public String receiveMessage() {
+        try {
+            while (true) {
+                String msg = responseQueue.poll(100, TimeUnit.MILLISECONDS);
+                if (msg == null) return null;
+                // 跳过文件传输相关的消息，让同步方法处理
+                if (msg.startsWith("UPLOAD_READY|") ||
+                        msg.startsWith("CHUNK_OK|") ||
+                        msg.startsWith("CHUNK_DATA|") ||
+                        msg.startsWith("FILE_DETAIL|")) {
+                    continue;
+                }
+                return msg;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    /**
+     * 公开的监听方法（供外部线程调用）
+     */
+    public void listenForMessagesInternal() {
+        listenForMessages();
+    }
+
+
 }

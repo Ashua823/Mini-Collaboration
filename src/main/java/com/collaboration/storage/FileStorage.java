@@ -1,10 +1,8 @@
-package main.java.com.collaboration.storage;
+package com.collaboration.storage;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 /**
  * 文件存储操作类

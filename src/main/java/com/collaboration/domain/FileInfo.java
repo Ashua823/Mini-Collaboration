@@ -1,8 +1,7 @@
-package main.java.com.collaboration.domain;
+package com.collaboration.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import java.time.LocalDateTime;
 
 /**
  * 文件信息实体类

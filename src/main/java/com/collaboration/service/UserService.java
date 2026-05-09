@@ -1,8 +1,10 @@
-package main.java.com.collaboration.service;
+package com.collaboration.service;
 
-import main.java.com.collaboration.domain.Response;
-import main.java.com.collaboration.domain.User;
-import main.java.com.collaboration.storage.JsonStorage;
+
+
+import com.collaboration.domain.Response;
+import com.collaboration.domain.User;
+import com.collaboration.storage.JsonStorage;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

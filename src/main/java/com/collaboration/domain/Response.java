@@ -1,4 +1,4 @@
-package main.java.com.collaboration.domain;
+package com.collaboration.domain;
 
 public class Response {
     //状态码

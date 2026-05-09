@@ -1,13 +1,17 @@
-package main.java.com.collaboration.network.server;
+package com.collaboration.network.server;
 
 
-import main.java.com.collaboration.domain.FileInfo;
-import main.java.com.collaboration.domain.Response;
-import main.java.com.collaboration.domain.User;
-import main.java.com.collaboration.service.FileService;
-import main.java.com.collaboration.service.MessageService;
-import main.java.com.collaboration.service.UserService;
-import main.java.com.collaboration.domain.Message;
+
+
+
+
+import com.collaboration.domain.FileInfo;
+import com.collaboration.domain.Message;
+import com.collaboration.domain.Response;
+import com.collaboration.domain.User;
+import com.collaboration.service.FileService;
+import com.collaboration.service.MessageService;
+import com.collaboration.service.UserService;
 
 import java.time.LocalDateTime;
 import java.util.Base64;

@@ -1,4 +1,4 @@
-package main.java.com.collaboration.network.server;
+package com.collaboration.network.server;
 
 import java.io.*;
 import java.net.Socket;

@@ -1,22 +1,20 @@
-package main.java.com.collaboration.service;
+package com.collaboration.service;
 
+
+import com.collaboration.domain.FileInfo;
+import com.collaboration.storage.FileStorage;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JavaType;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
-import main.java.com.collaboration.domain.FileInfo;
-import main.java.com.collaboration.storage.FileStorage;
 
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 /**
  * 文件业务逻辑层

@@ -1,4 +1,4 @@
-package main.java.com.collaboration.domain;
+package com.collaboration.domain;
 
 import java.time.LocalDateTime;
 

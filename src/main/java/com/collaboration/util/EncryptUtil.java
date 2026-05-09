@@ -1,4 +1,4 @@
-package main.java.com.collaboration.util;
+package com.collaboration.util;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

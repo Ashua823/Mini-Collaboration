@@ -1,9 +1,11 @@
-package main.java.com.collaboration.storage;
+package com.collaboration.storage;
 
+
+import com.collaboration.domain.User;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import main.java.com.collaboration.domain.User;
+
 
 import java.io.*;
 import java.util.ArrayList;
