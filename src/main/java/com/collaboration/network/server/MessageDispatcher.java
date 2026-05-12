@@ -175,6 +175,9 @@ public class MessageDispatcher {
         //调用 messageService.saveMessage(message) 保存消息
         messageService.saveMessage(message);
         handler.sendMessage("消息已发送并保存");
+
+
+
     }
 
     /**
@@ -212,7 +215,18 @@ public class MessageDispatcher {
 
         //同时给发送者发送确认
         handler.sendMessage("[私聊]"+"你对"+targetUsername+"发送信息:"+content);
-
+        // === 保存私聊消息到文件 ===
+        Message privateMessage = new Message(
+                UUID.randomUUID().toString(),   // messageId
+                handler.getUserId(),            // senderId（发送者）
+                handler.getUsername(),          // senderName
+                targetHandle.getUserId(),       // receiverID（接收者）
+                content,                        // 消息内容
+                Message.Type.PRIVATE,           // 类型：私聊
+                LocalDateTime.now().toString(), // 时间戳
+                false                           // isRead
+        );
+        messageService.saveMessage(privateMessage);
     }
 
     //获取在线用户
@@ -236,35 +250,41 @@ public class MessageDispatcher {
 
 
     private void handleGetMessages(ClientHandler handler, String[] parts) {
-        //检查 handler.isAuthenticated()
-        if(!handler.isAuthenticated()){
+        if (!handler.isAuthenticated()) {
             handler.sendMessage("请先登录");
             return;
         }
-        //参数检验
         if (parts.length < 3) {
             handler.sendMessage("指令格式错误，正确格式: GET_MESSAGES|页码|每页数量");
-            return;  // 必须返回，否则继续执行会出错
+            return;
         }
         try {
             int page = Integer.parseInt(parts[1]);
-            int size=Integer.parseInt(parts[2]);
+            int size = Integer.parseInt(parts[2]);
 
             List<Message> messages = messageService.getMessages(page, size);
-            if(messages==null || messages.isEmpty()){
+            if (messages == null || messages.isEmpty()) {
                 handler.sendMessage("列表为空");
-            }else {
+            } else {
                 for (Message message : messages) {
-                    String content = String.format("[%s] %s: %s",
-                            message.getTimestamp(),
-                            message.getSenderName(),
-                            message.getContent());
-                    handler.sendMessage(content);
+                    String formatted;
+                    if (message.getType() == Message.Type.PRIVATE) {
+                        // 私聊消息加上 [私聊] 前缀
+                        formatted = String.format("[私聊] %s -> %s: %s",
+                                message.getSenderName(),
+                                message.getReceiverID() != null ? "我" : "?",
+                                message.getContent());
+                    } else {
+                        // 公聊消息保持原格式
+                        formatted = String.format("[公聊] %s: %s",
+                                message.getSenderName(),
+                                message.getContent());
+                    }
+                    handler.sendMessage(formatted);
                 }
             }
         } catch (NumberFormatException e) {
             handler.sendMessage("页码或每页数量必须是数字");
-            return;
         }
     }
 
@@ -380,15 +400,22 @@ public class MessageDispatcher {
 
         handler.sendMessage("========== 文件列表 ==========");
         for (FileInfo file : files) {
-            String line = String.format("ID: %s | %s | %s | %s",
-                    file.getFileId(),
+            String uploadTime = file.getUploadTime();
+            if (uploadTime != null && uploadTime.length() >= 10) {
+                uploadTime = uploadTime.substring(0, 10);
+            } else {
+                uploadTime = "未知时间";
+            }
+            // 加上 fileId 作为第4个字段
+            String line = String.format("%s | %s | %s | %s",
+                    file.getUploaderName(),
                     file.getName(),
-                    file.getFormattedSize(),
-                    file.getUploaderName()
+                    uploadTime,
+                    file.getFileId()
             );
             handler.sendMessage(line);
         }
-        handler.sendMessage("================================");
+        handler.sendMessage("========");
     }
     /**
      * 获取当前用户上传的文件列表

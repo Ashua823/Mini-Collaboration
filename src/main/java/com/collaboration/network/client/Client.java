@@ -16,6 +16,7 @@ public class Client {
     private volatile boolean isConnected;
     private String host;
     private int port;
+    private final BlockingQueue<String> syncQueue = new LinkedBlockingQueue<>();
 
     // 响应队列（用于同步等待服务器响应）
     private final BlockingQueue<String> responseQueue = new LinkedBlockingQueue<>();
@@ -74,6 +75,7 @@ public class Client {
             while (isConnected && (message = in.readLine()) != null) {
                 // 放入队列供同步等待使用
                 responseQueue.offer(message);
+                syncQueue.offer(message);      // ← 加这行
 
                 // 非文件传输消息才打印
                 if (!message.startsWith("UPLOAD_READY|") &&
@@ -102,13 +104,13 @@ public class Client {
         long startTime = System.currentTimeMillis();
         try {
             while (System.currentTimeMillis() - startTime < timeoutMs) {
-                String msg = responseQueue.poll(100, TimeUnit.MILLISECONDS);
+                String msg = syncQueue.poll(100, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     if (msg.startsWith(prefix)) {
                         return msg;
                     }
-                    // 不匹配的消息放回队列，让 receiveMessage 能取到
-                    responseQueue.offer(msg);
+                    // 不匹配的放回 syncQueue
+                    syncQueue.offer(msg);
                 }
             }
         } catch (InterruptedException e) {
@@ -347,18 +349,7 @@ public class Client {
      */
     public String receiveMessage() {
         try {
-            while (true) {
-                String msg = responseQueue.poll(100, TimeUnit.MILLISECONDS);
-                if (msg == null) return null;
-                // 跳过文件传输相关的消息，让同步方法处理
-                if (msg.startsWith("UPLOAD_READY|") ||
-                        msg.startsWith("CHUNK_OK|") ||
-                        msg.startsWith("CHUNK_DATA|") ||
-                        msg.startsWith("FILE_DETAIL|")) {
-                    continue;
-                }
-                return msg;
-            }
+            return responseQueue.poll(100, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return null;
@@ -372,5 +363,193 @@ public class Client {
         listenForMessages();
     }
 
+    /**
+     * GUI 调用的文件上传
+     * @param filePath 文件路径
+     * @param progressCallback 进度回调 (当前块, 总块数) -> void
+     * @return 成功返回文件ID，失败返回 null
+     */
+    public String uploadFile(String filePath, java.util.function.BiConsumer<Integer, Integer> progressCallback) {
+        File file = new File(filePath);
+        if (!file.exists() || !file.isFile()) {
+            System.out.println("文件不存在: " + filePath);
+            return null;
+        }
 
+        try {
+            String fileName = file.getName();
+            long fileSize = file.length();
+
+            // 1. 发送上传请求
+            String initCmd = String.format("UPLOAD_FILE|%s|%d", fileName, fileSize);
+            sendCommand(initCmd);
+
+            // 2. 等待服务器返回 UPLOAD_READY
+            String readyResponse = waitForResponse("UPLOAD_READY|", 10000);
+            if (readyResponse == null) {
+                System.out.println("服务器未响应");
+                return null;
+            }
+
+            String[] readyParts = readyResponse.split("\\|");
+            if (readyParts.length < 3) return null;
+            String fileId = readyParts[1];
+            int totalChunks = Integer.parseInt(readyParts[2]);
+
+            // 3. 分块上传
+            byte[] fileData = Files.readAllBytes(Paths.get(filePath));
+            for (int i = 0; i < totalChunks; i++) {
+                int start = i * CHUNK_SIZE;
+                int end = (int) Math.min(start + CHUNK_SIZE, fileSize);
+                byte[] chunkData = new byte[end - start];
+                System.arraycopy(fileData, start, chunkData, 0, chunkData.length);
+
+                String chunkBase64 = Base64.getEncoder().encodeToString(chunkData);
+                sendCommand(String.format("UPLOAD_CHUNK|%d|%s", i, chunkBase64));
+
+                String chunkResponse = waitForResponse("CHUNK_OK|", 10000);
+                if (chunkResponse == null) {
+                    System.out.println("分块 " + i + " 上传失败");
+                    return null;
+                }
+
+                if (progressCallback != null) {
+                    progressCallback.accept(i + 1, totalChunks);
+                }
+            }
+
+            System.out.println("文件上传完成: " + fileName);
+            return fileId;
+
+        } catch (Exception e) {
+            System.out.println("文件上传失败: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * GUI 调用的文件下载
+     * @param fileId 文件ID
+     * @param savePath 保存路径
+     * @param progressCallback 进度回调
+     * @return 成功返回 true
+     */
+    public boolean downloadFile(String fileId, String savePath,
+                                java.util.function.BiConsumer<Integer, Integer> progressCallback) {
+        String[] fileInfo = getFileInfo(fileId);
+        if (fileInfo == null || fileInfo.length < 7) return false;
+
+        String fileName = fileInfo[2];
+        int totalChunks = Integer.parseInt(fileInfo[6]);
+
+        try {
+            FileOutputStream fos = new FileOutputStream(savePath);
+            for (int i = 0; i < totalChunks; i++) {
+                sendCommand(String.format("DOWNLOAD_CHUNK|%s|%d", fileId, i));
+                String chunkResponse = waitForResponse("CHUNK_DATA|", 10000);
+                if (chunkResponse == null) {
+                    fos.close();
+                    return false;
+                }
+                String[] parts = chunkResponse.split("\\|", 3);
+                if (parts.length < 3) continue;
+
+                byte[] chunkData = Base64.getDecoder().decode(parts[2]);
+                fos.write(chunkData);
+
+                if (progressCallback != null) {
+                    progressCallback.accept(i + 1, totalChunks);
+                }
+            }
+            fos.close();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 获取文件列表（返回原始响应供 GUI 解析）
+     */
+    public String getFileList() {
+        sendCommand("GET_FILE_LIST");
+
+        StringBuilder sb = new StringBuilder();
+        long start = System.currentTimeMillis();
+
+        try {
+            while (System.currentTimeMillis() - start < 3000) {
+                String msg = responseQueue.poll(300, TimeUnit.MILLISECONDS);
+                if (msg == null) continue;
+
+                if (!msg.contains("|") && !msg.startsWith("暂无文件")) {
+                    responseQueue.offer(msg);
+                    continue;
+                }
+
+                if (msg.equals("========")) {
+                    break;
+                }
+
+                if (msg.contains("|")) {
+                    sb.append(msg).append("\n");
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        String result = sb.toString().trim();
+        System.out.println("[文件列表] 收集结果: " + result);
+        return result;
+    }
+
+    /**
+     * 发送上传请求（不等待响应，响应由 receiveMessage 处理）
+     */
+    public void sendUploadRequest(String filePath) {
+        File file = new File(filePath);
+        if (!file.exists()) return;
+
+        String fileName = file.getName();
+        long fileSize = file.length();
+        sendCommand(String.format("UPLOAD_FILE|%s|%d", fileName, fileSize));
+    }
+
+    public String waitForResponsePublic(String prefix, int timeoutMs) {
+        return waitForResponse(prefix, timeoutMs);
+    }
+    /**
+     * GUI 同步下载文件
+     */
+    public boolean downloadFileSync(String fileId, String savePath) {
+        // 获取文件信息
+        sendCommand("FILE_INFO|" + fileId);
+        String detailResp = waitForResponse("FILE_DETAIL|", 5000);
+        if (detailResp == null) return false;
+
+        String[] fileInfo = detailResp.split("\\|");
+        if (fileInfo.length < 7) return false;
+        int totalChunks = Integer.parseInt(fileInfo[6]);
+
+        try {
+            FileOutputStream fos = new FileOutputStream(savePath);
+            for (int i = 0; i < totalChunks; i++) {
+                sendCommand("DOWNLOAD_CHUNK|" + fileId + "|" + i);
+                String chunkResp = waitForResponse("CHUNK_DATA|", 10000);
+                if (chunkResp == null) {
+                    fos.close();
+                    return false;
+                }
+                String[] parts = chunkResp.split("\\|", 3);
+                if (parts.length < 3) continue;
+                byte[] data = Base64.getDecoder().decode(parts[2]);
+                fos.write(data);
+            }
+            fos.close();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

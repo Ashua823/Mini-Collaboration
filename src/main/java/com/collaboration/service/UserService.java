@@ -59,34 +59,30 @@ public class UserService {
 
     //登录检查
     public Response login(String username, String password) {
-        // 1. 参数校验
         if (username == null || username.trim().isEmpty()) {
             return Response.error("用户名不能为空");
         }
         if (password == null || password.trim().isEmpty()) {
             return Response.error("密码不能为空");
         }
-        // 2. 查找用户
+
         User user = jsonStorage.findByUsername(username);
         if (user == null) {
             return Response.error("用户名不存在");
         }
 
-        // 3. 密码验证
-        if(!user.verifyPassword(password)){
+        if (!user.verifyPassword(password)) {
             return Response.error("密码错误");
         }
 
-        // 4. 更新在线状态
+        // 只改内存状态，不保存到文件
+        // 服务重启后所有人自动变为 offline，不需要持久化在线状态
         user.setStatus("online");
-        //更新用户状态
-        jsonStorage.save(user);
+        // jsonStorage.save(user);  ← 删掉这行
 
-        // 5. 返回成功
         user.setPassword(null);
         user.setSalt(null);
         return Response.success(user);
-
     }
 
 }

@@ -31,7 +31,19 @@ public class JsonStorage {
     //保存单个用户
     public void save(User user) {
         List<User> users = findAll();
-        users.add(user);
+        // 查找是否已存在（按 userId 匹配，更新；按 username 匹配，替换）
+        boolean found = false;
+        for (int i = 0; i < users.size(); i++) {
+            User u = users.get(i);
+            if (u != null && u.getUserId() != null && u.getUserId().equals(user.getUserId())) {
+                users.set(i, user);  // 替换旧记录
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            users.add(user);  // 新用户才追加
+        }
         saveAll(users);
     }
 

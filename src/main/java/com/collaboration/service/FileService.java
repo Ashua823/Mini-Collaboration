@@ -267,6 +267,7 @@ public class FileService {
     public boolean uploadSmallFile(String fileName, byte[] fileData, String uploaderId, String uploaderName) {
         // TODO: 上传小文件（不分块）
        FileInfo fileInfo=initUpload(fileName,fileData.length,uploaderId,uploaderName);
+        fileInfo.setUploadTime(LocalDateTime.now().toString());
        //保存文件数据(不需要锁)
         boolean saved= fileStorage.saveFileData(fileInfo.getSavePath(),fileData,false);
         if(!saved){
@@ -383,17 +384,20 @@ public class FileService {
      * 3. 收集为 List 返回
      */
     public List<FileInfo> getAllCompletedFiles() {
-        // TODO: 返回所有已完成文件列表
         lock.readLock().lock();
         try {
             return fileInfoMap.values()
                     .stream()
                     .filter(FileInfo::isComplete)
+                    .sorted((a, b) -> {
+                        String ta = a.getUploadTime() != null ? a.getUploadTime() : "";
+                        String tb = b.getUploadTime() != null ? b.getUploadTime() : "";
+                        return tb.compareTo(ta);  // 新的在前
+                    })
                     .toList();
         } finally {
             lock.readLock().unlock();
         }
-
     }
 
     /**
